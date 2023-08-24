@@ -38,7 +38,7 @@ cp.scripts.define(async () => {
     const radioGroup = cp.ui.fixedRadioGroup([...dayNames.slice(1), dayNames[0]]);
     radioGroup.style.flexDirection = 'column';
     const confirmButton = put('button.main-button[disabled] $', 'Confirm');
-
+    radioGroup.classList.add('list-of-days-of-the-week');
     radioGroup.onclick = () => {
       put(confirmButton, '[!disabled]');
     }
@@ -143,11 +143,14 @@ cp.scripts.define(async () => {
   })();
   cp.styles.add(`
     .master-parent {
-      min-height: 15em;
+      min-height: 16em;
     }
     .main-button{
       width: 100%;
       padding: 0.6em;
+    }
+    div.list-of-days-of-the-week>label{
+      min-height: 1.7rem;
     }
   `)
 
