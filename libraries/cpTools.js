@@ -722,7 +722,7 @@ const cp = (() => {
       put(elems.popUp, '!cpHidden');
     });
     const vspace = (height) => put('div[style=$]', `height: ${height}`);
-    const hspace = (width) => put('div.cpInLine[style=$]', `width: ${width}`);
+    const hspace = (width) => put('div.cpInline[style=$]', `padding-right: ${width}`);
 
     // styling: https://stackoverflow.com/a/10148189/3671939
     styles.add(`

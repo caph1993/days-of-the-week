@@ -71,22 +71,22 @@ cp.scripts.define(async () => {
     const isCorrect = guess === dayOfWeek;
     const dateStr = `${monthNames[month]} ${day}, ${year}`;
     const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-    const leapMatters = isLeap && month <= 2;
+    const leapMatters = isLeap && month < 2;
     const refDayOfMonth = [3, 14, 0, 4, 9, 6, 11, 8, 5, 10, 7, 12][month] + (leapMatters ? 1 : 0);
 
-    const whyButton = put('button $', 'Why?');
     const whyParent = put('div');
     const nextButton = put('button.main-button $', 'Next');
     nextButton.onclick = onNext;
     const mainElem = cp.html`
-    <div class="text-center master-parent">
-      ${isCorrect ? 'That is correct! 👍' : 'That is incorrect 👎'} ⏱${Math.ceil(elapsed / 1000)}s<br>
+    <div class="master-parent">
+      <div class="cpCenter">
+      ${isCorrect ? cp.html`That is <span style="color:green">correct</span>! 👍` : cp.html`That is <span style="color:red">incorrect</span> 👎`}
+      ${cp.ui.hspace('1em')}
+      ⏱${Math.ceil(elapsed / 1000)}s
+      </div>
+      <hr>
       ${dateStr} was <b>${dayNames[dayOfWeek]}</b>${isCorrect ? '' : `, not ${dayNames[guess]}`}.
-      ${cp.ui.vspace('1em')}
-      ${year} was a ${leapMatters ? 'leap and ' : ''}${dayNames[yearsDayOfWeek]} year. ${whyButton}
-      <br>
-      So, ${monthNames[month]} ${refDayOfMonth} was ${dayNames[yearsDayOfWeek]}.
-      ${cp.ui.vspace('1em')}
+      ${cp.ui.vspace('2em')}
       ${whyParent}
     </div>
     ${nextButton}
@@ -103,7 +103,7 @@ cp.scripts.define(async () => {
       texts.push(...cp.html`→<sup>/2</sup> ${value}`);
       if (value % 2 != 0) {
         value += 11;
-        texts.push(...cp.html`→<sup>+11</sup> ${value}.`);
+        texts.push(...cp.html`→<sup>+11</sup> ${value}`);
       }
       const next7 = 7 * Math.ceil(value / 7);
       value = next7 - value;
@@ -118,16 +118,16 @@ cp.scripts.define(async () => {
     const similarYears = () => {
       const mkYears = (year) => [year, year + 28, year - 28, year + 56, year - 56];
       let years = [...mkYears(year), ...(year % 2 ? mkYears(year + 11) : [])];
-      years = years.filter(y => 1990 <= y && y <= 2025);
-      return years.join(', ');
+      years = years.filter(y => y!=year && 1990 <= y && y <= 2025);
+      return years.length? cp.html`Similar years: ${years.join(', ')}.<br>`: [];
     }
-    whyButton.onclick = () => {
-      whyParent.replaceChildren(...cp.html`
-        ${makeExplanation11()}<br>
-        Similar years: ${similarYears()}
+    whyParent.replaceChildren(...cp.html`
+      ${year} was a ${leapMatters ? 'leap and ' : ''}${dayNames[yearsDayOfWeek]} year:<br>
+      ${makeExplanation11()}<br>
+      ${similarYears()}
+      So, ${monthNames[month]} ${refDayOfMonth} was ${dayNames[yearsDayOfWeek]}.
         ${cp.ui.vspace('1em')}
-      `);
-    }
+    `);
     return mainElem;
   };
 
@@ -147,7 +147,7 @@ cp.scripts.define(async () => {
   })();
   cp.styles.add(`
     .master-parent {
-      min-height: 16em;
+      min-height: 19em;
     }
     .main-button{
       width: 100%;
@@ -165,7 +165,10 @@ cp.scripts.define(async () => {
 
 
   const main = cp.html`
-${put('h3 $', 'Days of the week')}
+<h3>
+  ${put('img[src=$] @', './favicon.png', (self)=>self.style.width='1em')}
+  ${'Days of the week'}
+</h3>
 <hr>
 ${exerciseElem}
 ${cp.ui.vspace('1em')}
