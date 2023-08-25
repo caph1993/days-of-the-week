@@ -24,17 +24,11 @@ cp.scripts.define(async () => {
 
   const readyBasic = new cp.events.Target(false);
 
-  cp.styles.add(`
-  span.hint {
-      opacity: 0.5;
-      border: 1px solid black;
-  }
-  `)
   function newExerciseElem(onConfirm) {
     const mainDate = getRandomDate();
     const { year, month, day } = decomposeDate(mainDate);
     const dateElem = put('span $', '');
-    dateElem.textContent = `${day} ${monthNames[month]} ${year}`;
+    dateElem.textContent = `${monthNames[month]} ${day}, ${year}`;
     const radioGroup = cp.ui.fixedRadioGroup([...dayNames.slice(1), dayNames[0]]);
     radioGroup.style.flexDirection = 'column';
     const confirmButton = put('button.main-button[disabled] $', 'Confirm');
@@ -60,7 +54,9 @@ cp.scripts.define(async () => {
 
     return cp.html`
     <div class="text-center master-parent">
-      ${dateElem}
+      <div class="cpCenter main-date">
+        ${dateElem}
+      </div>
       ${cp.ui.vspace('1em')}
       ${radioGroup}
       ${cp.ui.vspace('1em')}
@@ -70,10 +66,10 @@ cp.scripts.define(async () => {
   }
 
   function newResultsElem(result, onNext) {
-    const { day, month, year, guess, dayOfWeek } = result;
+    const { day, month, year, guess, dayOfWeek, elapsed } = result;
     const yearsDayOfWeek = new Date(`${year}-10-10`).getDay();
     const isCorrect = guess === dayOfWeek;
-    const dateStr = `${day} ${monthNames[month]} ${year}`;
+    const dateStr = `${monthNames[month]} ${day}, ${year}`;
     const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
     const leapMatters = isLeap && month <= 2;
     const refDayOfMonth = [3, 14, 0, 4, 9, 6, 11, 8, 5, 10, 7, 12][month] + (leapMatters ? 1 : 0);
@@ -84,11 +80,12 @@ cp.scripts.define(async () => {
     nextButton.onclick = onNext;
     const mainElem = cp.html`
     <div class="text-center master-parent">
-      ${dateStr} was ${isCorrect ? '' : `not ${dayNames[guess]}. It was `} ${dayNames[dayOfWeek]}.
+      ${isCorrect ? 'That is correct! 👍' : 'That is incorrect 👎'} ⏱${Math.ceil(elapsed / 1000)}s<br>
+      ${dateStr} was <b>${dayNames[dayOfWeek]}</b>${isCorrect ? '' : `, not ${dayNames[guess]}`}.
       ${cp.ui.vspace('1em')}
       ${year} was a ${leapMatters ? 'leap and ' : ''}${dayNames[yearsDayOfWeek]} year. ${whyButton}
       <br>
-      So, ${refDayOfMonth} of ${monthNames[month]} was ${dayNames[yearsDayOfWeek]}.
+      So, ${monthNames[month]} ${refDayOfMonth} was ${dayNames[yearsDayOfWeek]}.
       ${cp.ui.vspace('1em')}
       ${whyParent}
     </div>
@@ -97,30 +94,37 @@ cp.scripts.define(async () => {
     const makeExplanation11 = () => {
       // Explanation 1
       let value = year % 100;
-      let texts = [`${value}.`];
+      let texts = [...cp.html`${value}`];
       if (value % 2 != 0) {
         value += 11;
-        texts.push(`Add 11: ${value}.`);
+        texts.push(...cp.html`→<sup>+11</sup> ${value}`);
       }
       value = value / 2;
-      texts.push(`Div. by 2: ${value}.`);
+      texts.push(...cp.html`→<sup>/2</sup> ${value}`);
       if (value % 2 != 0) {
         value += 11;
-        texts.push(`Add 11: gives ${value}.`);
+        texts.push(...cp.html`→<sup>+11</sup> ${value}.`);
       }
       const next7 = 7 * Math.ceil(value / 7);
       value = next7 - value;
       if (value) {
-        texts.push(`To ${next7} we need ${value}.`);
+        texts.push(...cp.html`→<sup>to ${next7}</sup> ${value}`);
       }
       const century = (7 + yearsDayOfWeek - value) % 7;
       value += century;
-      texts.push(`Add ${century} (century) gives ${value}`);
-      return texts.join(' ');
+      texts.push(...cp.html`→<sup>+${century}</sup> <b>${value}</b>.`);
+      return texts;
+    }
+    const similarYears = () => {
+      const mkYears = (year) => [year, year + 28, year - 28, year + 56, year - 56];
+      let years = [...mkYears(year), ...(year % 2 ? mkYears(year + 11) : [])];
+      years = years.filter(y => 1990 <= y && y <= 2025);
+      return years.join(', ');
     }
     whyButton.onclick = () => {
       whyParent.replaceChildren(...cp.html`
-        Calculation: ${makeExplanation11()}
+        ${makeExplanation11()}<br>
+        Similar years: ${similarYears()}
         ${cp.ui.vspace('1em')}
       `);
     }
@@ -147,16 +151,22 @@ cp.scripts.define(async () => {
     }
     .main-button{
       width: 100%;
-      padding: 0.6em;
+      padding: 1.5em;
+    }
+    .main-date{
+      font-size:1.5rem;
     }
     div.list-of-days-of-the-week>label{
-      min-height: 1.7rem;
+      margin: 0.25rem;
+      border: 0.1px solid #00000010;
+      border-radius: 0.3rem;
     }
   `)
 
 
   const main = cp.html`
-${put('h1 $', 'Days of the week')}
+${put('h3 $', 'Days of the week')}
+<hr>
 ${exerciseElem}
 ${cp.ui.vspace('1em')}
 Carlos Pinzón. 2023.
@@ -164,8 +174,8 @@ Carlos Pinzón. 2023.
 
   const mainWrapper = put(`div.${cp.styles.add((uid) => `
     .${uid}{
-      padding-top: 1em;
-      padding-bottom: calc(20vh + 5rem);
+      padding-top: 0.2em;
+      padding-bottom: 0.2em;
     }
   `)}`,
     put(`div.${cp.styles.add((uid) => `
