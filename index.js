@@ -7,25 +7,33 @@ cp.scripts.define(async () => {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  function getRandomDate(startDate = new Date('1940-01-01'), endDate = new Date('2050-12-31')) {
-    const startT = startDate.getTime();
-    const endT = endDate.getTime();
+  /**
+   * @param {string|number|Date}  start
+   * @param {string|number|Date}  end
+   * */
+  function getRandomDate(start = '1900-01-01', end = '2050-12-31') {
+    const startT = new Date(start).getTime();
+    const endT = new Date(end).getTime();
     const randomT = startT + Math.random() * (endT - startT);
     return new Date(randomT);
+  }
+  function customRandomDate() {
+    const { year } = decomposeDate(new Date());
+    const past = year - (cp.utils.rand32() % 2 ? 80 : 10);
+    const future = year + (cp.utils.rand32() % 2 ? 30 : 5);
+    return getRandomDate(`${past}-01-01`, `${future}-12-31`);
   }
   function decomposeDate(date) {
     const year = date.getFullYear();
     const month = date.getMonth();
     const day = date.getDate();
-    const dayOfWeek = date.getDay();
-    const yearsDayOfWeek = new Date(`${year}-08-08`).getDay();
-    return { year, month, day, dayOfWeek, yearsDayOfWeek }
+    return { year, month, day }
   }
 
   const readyBasic = new cp.events.Target(false);
 
   function newExerciseElem(onConfirm) {
-    const mainDate = getRandomDate();
+    const mainDate = customRandomDate();
     const { year, month, day } = decomposeDate(mainDate);
     const dateElem = put('span $', '');
     dateElem.textContent = `${monthNames[month]} ${day}, ${year}`;
@@ -118,8 +126,8 @@ cp.scripts.define(async () => {
     const similarYears = () => {
       const mkYears = (year) => [year, year + 28, year - 28, year + 56, year - 56];
       let years = [...mkYears(year), ...(year % 2 ? mkYears(year + 11) : [])];
-      years = years.filter(y => y!=year && 1990 <= y && y <= 2025);
-      return years.length? cp.html`Similar years: ${years.join(', ')}.<br>`: [];
+      years = years.filter(y => y != year && 1990 <= y && y <= 2025);
+      return years.length ? cp.html`Similar years: ${years.join(', ')}.<br>` : [];
     }
     whyParent.replaceChildren(...cp.html`
       ${year} was a ${leapMatters ? 'leap and ' : ''}${dayNames[yearsDayOfWeek]} year:<br>
@@ -166,7 +174,7 @@ cp.scripts.define(async () => {
 
   const main = cp.html`
 <h3>
-  ${put('img[src=$] @', './favicon.png', (self)=>self.style.width='1em')}
+  ${put('img[src=$] @', './favicon.png', (self) => self.style.width = '1em')}
   ${'Days of the week'}
 </h3>
 <hr>
