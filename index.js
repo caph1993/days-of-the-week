@@ -134,6 +134,7 @@ cp.scripts.define(async () => {
       ${makeExplanation11()}<br>
       ${similarYears()}
       So, ${monthNames[month]} ${refDayOfMonth} was ${dayNames[yearsDayOfWeek]}.
+      <a href="https://en.wikipedia.org/wiki/Doomsday_rule?section=7#The_%22odd_+_11%22_method">Confused?</a>
         ${cp.ui.vspace('1em')}
     `);
     return mainElem;
