@@ -19,7 +19,7 @@ cp.scripts.define(async () => {
   }
   let customRandomDateMode = 0;
   function customRandomDate() {
-    customRandomDateMode = customRandomDateMode % 2;
+    customRandomDateMode = customRandomDateMode % 3;
     const { year } = decomposeDate(new Date());
     if (customRandomDateMode === 0) {  
       const past = year - (cp.utils.rand32() % 2 ? 80 : 10);
