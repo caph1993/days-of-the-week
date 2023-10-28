@@ -27,6 +27,10 @@ cp.scripts.define(async () => {
       return getRandomDate(`${past}-01-01`, `${future}-12-31`);
     } else if (customRandomDateMode === 1) {
       return getRandomDate(`${year}-01-01`, `${year}-12-31`);
+    } else if (customRandomDateMode === 2) {
+      const past = year - 10;
+      const future = year + 5;
+      return getRandomDate(`${past}-01-01`, `${future}-12-31`);
     }
     else throw new Error('Invalid customRandomDateMode');
   }
