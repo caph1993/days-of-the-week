@@ -17,11 +17,18 @@ cp.scripts.define(async () => {
     const randomT = startT + Math.random() * (endT - startT);
     return new Date(randomT);
   }
+  let customRandomDateMode = 0;
   function customRandomDate() {
+    customRandomDateMode = customRandomDateMode % 2;
     const { year } = decomposeDate(new Date());
-    const past = year - (cp.utils.rand32() % 2 ? 80 : 10);
-    const future = year + (cp.utils.rand32() % 2 ? 30 : 5);
-    return getRandomDate(`${past}-01-01`, `${future}-12-31`);
+    if (customRandomDateMode === 0) {  
+      const past = year - (cp.utils.rand32() % 2 ? 80 : 10);
+      const future = year + (cp.utils.rand32() % 2 ? 30 : 5);
+      return getRandomDate(`${past}-01-01`, `${future}-12-31`);
+    } else if (customRandomDateMode === 1) {
+      return getRandomDate(`${year}-01-01`, `${year}-12-31`);
+    }
+    else throw new Error('Invalid customRandomDateMode');
   }
   function decomposeDate(date) {
     const year = date.getFullYear();
@@ -177,6 +184,7 @@ cp.scripts.define(async () => {
 <h3>
   ${put('img[src=$] @', './favicon.png', (self) => self.style.width = '1em')}
   ${'Days of the week'}
+  ${put('span $ @click', '⚙️', () => { customRandomDateMode++; })}
 </h3>
 <hr>
 ${exerciseElem}
