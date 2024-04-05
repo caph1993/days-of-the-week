@@ -4,8 +4,20 @@
 cp.scripts.define(async () => {
   var put = cp.put;
 
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dateNamesDict = {
+    en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    es: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+    fr: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'],
+  }
+  const monthNamesDict = {
+    en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    es: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+    fr: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
+  }
+
+  let lang = 'en';
+  let dayNames = dateNamesDict[lang];
+  let monthNames = monthNamesDict[lang];
 
   /**
    * @param {string|number|Date}  start
@@ -17,28 +29,40 @@ cp.scripts.define(async () => {
     const randomT = startT + Math.random() * (endT - startT);
     return new Date(randomT);
   }
-  let customRandomDateMode = 0;
-  function customRandomDate() {
-    customRandomDateMode = customRandomDateMode % 3;
+  let customRandomDateMode = 2;
+  function getDateRange() {
+    customRandomDateMode = customRandomDateMode % 4;
     const { year } = decomposeDate(new Date());
-    if (customRandomDateMode === 0) {  
-      const past = year - (cp.utils.rand32() % 2 ? 80 : 10);
-      const future = year + (cp.utils.rand32() % 2 ? 30 : 5);
-      return getRandomDate(`${past}-01-01`, `${future}-12-31`);
+    if (customRandomDateMode === 0) {
+      return [year, year]
     } else if (customRandomDateMode === 1) {
-      return getRandomDate(`${year}-01-01`, `${year}-12-31`);
-    } else if (customRandomDateMode === 2) {
       const past = year - 10;
       const future = year + 5;
-      return getRandomDate(`${past}-01-01`, `${future}-12-31`);
-    }
-    else throw new Error('Invalid customRandomDateMode');
+      return [past, future];
+    } else if (customRandomDateMode === 2) {
+      const past = year - 1;
+      const future = year + 1;
+      return [past, future];
+    } else if (customRandomDateMode === 3) {
+      const past = year - (cp.utils.rand32() % 2 ? 80 : 10);
+      const future = year + (cp.utils.rand32() % 2 ? 30 : 5);
+      return [past, future];
+    } else throw new Error('Invalid customRandomDateMode');
   }
   function decomposeDate(date) {
     const year = date.getFullYear();
     const month = date.getMonth();
     const day = date.getDate();
     return { year, month, day }
+  }
+  let refRange = null;
+  function customRandomDate() {
+    const [start, end] = getDateRange();
+    if (refRange) {
+      refRange.textContent = '';
+      put(refRange, '$', start == end ? `${start}` : `${start}-${end}`);
+    }
+    return getRandomDate(`${start}-01-01`, `${end}-12-31`);
   }
 
   const readyBasic = new cp.events.Target(false);
@@ -140,18 +164,22 @@ cp.scripts.define(async () => {
       years = years.filter(y => y != year && 1990 <= y && y <= 2025);
       return years.length ? cp.html`Similar years: ${years.join(', ')}.<br>` : [];
     }
+    const monthShift = [4, 0, 0, 3, 5, 1, 3, 6, 2, 4, 0, 2][month];
     whyParent.replaceChildren(...cp.html`
       ${year} was a ${leapMatters ? 'leap and ' : ''}${dayNames[yearsDayOfWeek]} year:<br>
       ${makeExplanation11()}<br>
       ${similarYears()}
-      So, ${monthNames[month]} ${refDayOfMonth} was ${dayNames[yearsDayOfWeek]}.
-      <a href="https://en.wikipedia.org/wiki/Doomsday_rule?section=7#The_%22odd_+_11%22_method">Confused?</a>
-        ${cp.ui.vspace('1em')}
+      So, ${monthNames[month]} ${refDayOfMonth}
+      <a href="https://en.wikipedia.org/wiki/Doomsday_rule?section=7#The_%22odd_+_11%22_method">(doomday)</a>
+      was ${dayNames[yearsDayOfWeek]}.
+      ${cp.ui.vspace('0.2em')}
+      The month shift for ${monthNames[month]} is ${monthShift}${leapMatters ? ' (-1)' : ''}. 
+      ${cp.ui.vspace('1em')}
     `);
     return mainElem;
   };
 
-  const exerciseElem = (() => {
+  const [exerciseElem, nextExercise] = (() => {
     const parent = put('div');
     function afterGuess(result) {
       console.log(result);
@@ -163,7 +191,7 @@ cp.scripts.define(async () => {
       parent.replaceChildren(...exerciseElem);
     }
     nextExercise();
-    return parent;
+    return [parent, nextExercise];
   })();
   cp.styles.add(`
     .master-parent {
@@ -181,20 +209,37 @@ cp.scripts.define(async () => {
       border: 0.1px solid #00000010;
       border-radius: 0.3rem;
     }
-  `)
-
+  `);
 
   const main = cp.html`
-<h3>
-  ${put('img[src=$] @', './favicon.png', (self) => self.style.width = '1em')}
-  ${'Days of the week'}
-  ${put('span $ @click', '⚙️', () => { customRandomDateMode++; })}
-</h3>
-<hr>
-${exerciseElem}
-${cp.ui.vspace('1em')}
-Carlos Pinzón. 2023.
+    <h3>
+      ${put('img[src=$] @', './favicon.png', (self) => self.style.width = '1em')}
+      ${'Days of the week'}
+      ${'' && put('button $ @click', 'EN', (btn) => {
+        lang = { en: 'es', es: 'fr', fr: 'en' }[lang];
+        btn.textContent = lang.toUpperCase();
+        dayNames = dateNamesDict[lang];
+        monthNames = monthNamesDict[lang];
+      })}
+    </h3>
+    <hr>
+    ${exerciseElem}
+    ${cp.ui.vspace('1em')}
+    <div>
+      Date range:
+      <button>
+      ${put('span $ @click', '⇆', () => {
+        customRandomDateMode++;
+        nextExercise();
+      })}
+      </button>
+      ${refRange = put('span')}
+    </div>
+    <div>
+      Carlos Pinzón.
+    </div>
   `;
+  customRandomDate(); // Trigger refRange update
 
   const mainWrapper = put(`div.${cp.styles.add((uid) => `
     .${uid}{
@@ -211,7 +256,9 @@ Carlos Pinzón. 2023.
     ));
 
   cp.styles.add(`
-    button{cursor: pointer;}
+    button{
+      cursor: pointer;
+    }
     html{
       font-family: Latin Modern Roman;
       font-size: 1.2em;
