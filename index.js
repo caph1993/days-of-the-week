@@ -166,14 +166,14 @@ cp.scripts.define(async () => {
     }
     const monthShift = [4, 0, 0, 3, 5, 1, 3, 6, 2, 4, 0, 2][month];
     whyParent.replaceChildren(...cp.html`
-      ${year} was a ${leapMatters ? 'leap and ' : ''}${dayNames[yearsDayOfWeek]} year:<br>
+      ${year} was a ${leapMatters ? 'leap⭒ and ' : ''}${dayNames[yearsDayOfWeek]} year:<br>
       ${makeExplanation11()}<br>
       ${similarYears()}
       So, ${monthNames[month]} ${refDayOfMonth}
       <a href="https://en.wikipedia.org/wiki/Doomsday_rule?section=7#The_%22odd_+_11%22_method">(doomday)</a>
       was ${dayNames[yearsDayOfWeek]}.
       ${cp.ui.vspace('0.2em')}
-      The month shift for ${monthNames[month]} is ${monthShift}${leapMatters ? ' (-1)' : ''}. 
+      The month shift for ${monthNames[month]} is ${monthShift}${leapMatters ? `-1⭒=${monthShift - 1}` : ''}. 
       ${cp.ui.vspace('1em')}
     `);
     return mainElem;
