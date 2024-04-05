@@ -215,6 +215,7 @@ cp.scripts.define(async () => {
     <h3>
       ${put('img[src=$] @', './favicon.png', (self) => self.style.width = '1em')}
       ${'Days of the week'}
+      ${put('button $ @click', '⇆', () => { nextExercise(); })}
       ${'' && put('button $ @click', 'EN', (btn) => {
         lang = { en: 'es', es: 'fr', fr: 'en' }[lang];
         btn.textContent = lang.toUpperCase();
