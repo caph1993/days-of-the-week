@@ -115,7 +115,6 @@ cp.scripts.define(async () => {
     const dateStr = `${monthNames[month]} ${day}, ${year}`;
     const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
     const leapMatters = isLeap && month < 2;
-    const refDayOfMonth = [3, 14, 0, 4, 9, 6, 11, 8, 5, 10, 7, 12][month] + (leapMatters ? 1 : 0);
 
     const whyParent = put('div');
     const nextButton = put('button.main-button $', 'Next');
@@ -155,7 +154,7 @@ cp.scripts.define(async () => {
       }
       const century = (7 + yearsDayOfWeek - value) % 7;
       value += century;
-      texts.push(...cp.html`→<sup>+${century}</sup> <b>${value}</b>.`);
+      texts.push(...cp.html`→<sup>+${century}</sup> <b>${value}</b>${value >= 7 ? cp.html` ≡ <b>${value % 7}</b>` : ''}.`);
       return texts;
     }
     const similarYears = () => {
@@ -165,15 +164,16 @@ cp.scripts.define(async () => {
       return years.length ? cp.html`Similar years: ${years.join(', ')}.<br>` : [];
     }
     const monthShift = [4, 0, 0, 3, 5, 1, 3, 6, 2, 4, 0, 2][month];
+    const monthMod = monthShift + (leapMatters ? -1 : 0);
+    const total = ((yearsDayOfWeek + monthMod + day) % 7 + 7) % 7;
     whyParent.replaceChildren(...cp.html`
-      ${year} was a ${leapMatters ? 'leap⭒ and ' : ''}${dayNames[yearsDayOfWeek]} year:<br>
-      ${makeExplanation11()}<br>
-      ${similarYears()}
-      So, ${monthNames[month]} ${refDayOfMonth}
-      <a href="https://en.wikipedia.org/wiki/Doomsday_rule?section=7#The_%22odd_+_11%22_method">(doomday)</a>
-      was ${dayNames[yearsDayOfWeek]}.
+      Year modifier of ${year}: <b>${yearsDayOfWeek}</b>${isLeap ? ' (leap⭒)' : ''}.<br>
+      <small>If you don't remember it: ${makeExplanation11()}</small><br>
+      <small>${similarYears()}</small>
       ${cp.ui.vspace('0.2em')}
-      The month shift for ${monthNames[month]} is ${monthShift}${leapMatters ? `-1⭒=${monthShift - 1}` : ''}. 
+      Month modifier of ${monthNames[month]}: <b>${monthShift}</b>${leapMatters ? ` −1⭒ = <b>${monthMod}</b>` : ''}.
+      ${cp.ui.vspace('0.2em')}
+      ${yearsDayOfWeek} + ${monthMod} + ${day} = ${yearsDayOfWeek + monthMod + day} ≡ <b>${total}</b> (mod 7) → ${dayNames[dayOfWeek]}.
       ${cp.ui.vspace('1em')}
     `);
     return mainElem;
@@ -215,7 +215,7 @@ cp.scripts.define(async () => {
   // ---------- Reference: tutorial, month tables, year tables ----------
   const monthShifts = [4, 0, 0, 3, 5, 1, 3, 6, 2, 4, 0, 2];
   const isLeapYear = (y) => (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
-  const yearModifier = (y) => new Date(y, 9, 10).getDay(); // weekday of Oct 10 (doomsday)
+  const yearModifier = (y) => new Date(y, 9, 10).getDay(); // equals the weekday of Oct 10
   const hue = (k) => `hsl(${k * 51}, 45%, 94%)`;
   const chip = (k, text) => `<span class="chip" style="background:${hue(k)}">${text}</span>`;
   const shortDay = (k) => dayNames[k].slice(0, 3);
@@ -271,7 +271,7 @@ cp.scripts.define(async () => {
   const yearsMatrix = () => {
     const now = new Date().getFullYear();
     return `
-    <p class="note">The year's number is the weekday of its doomsday (Oct 10, Dec 12, …). Leap years are marked ⭒.</p>
+    <p class="note">Each year has a number from 0 to 6. Leap years are marked ⭒.</p>
     <div class="cells">${yearRange().map(y => {
       const k = yearModifier(y);
       return cell(k, `${y}${isLeapYear(y) ? '⭒' : ''}`, `${k} <small>${shortDay(k)}</small>`, y === now ? 'border-color:#000;' : '');
@@ -280,7 +280,7 @@ cp.scripts.define(async () => {
   const yearsGrouped = () => {
     const now = new Date().getFullYear();
     return `
-    <p class="note">Years with the same number share the same calendar from March to December.</p>
+    <p class="note">Years with the same number have the same calendar from March to December.</p>
     ${groupRows(k => yearRange().filter(y => yearModifier(y) === k).map(y =>
       chip(k, `${y === now ? '<u>' : ''}${y}${isLeapYear(y) ? '⭒' : ''}${y === now ? '</u>' : ''}`)).join(' '))}`;
   };
@@ -320,21 +320,22 @@ cp.scripts.define(async () => {
       <p>Number the days <b>0 = Sunday, 1 = Monday, … 6 = Saturday</b>. Then:</p>
       <p class="formula">weekday = <span class="y">year modifier</span> + <span class="m">month modifier</span> + <span class="d">day of month</span> &nbsp;(mod 7)</p>
       <ol>
-        <li><span class="y"><b>Year modifier</b></span> = the weekday of the year's "doomsday" (the same weekday as Oct 10, Dec 12, Apr 4, …).
-          Take the last two digits and apply the <i>odd + 11</i> method:
+        <li><span class="y"><b>Year modifier</b></span>: a number 0–6 that you learn for each year (2026 → 6, 2027 → 0, 2028 → 2, …; see the tables below).
+          Each year it goes up by 1, or by 2 when the new year is a leap year.
+          If you don't remember it, compute it from the last two digits:
           <ul>
             <li>if odd, add 11;</li>
             <li>halve it;</li>
             <li>if odd again, add 11;</li>
             <li>take the distance to the next multiple of 7 (0 if already a multiple);</li>
-            <li>add the <b>century anchor</b>: 1900s → 3 (Wed), 2000s → 2 (Tue), 2100s → 0 (Sun), 1800s → 5 (Fri).</li>
+            <li>add the <b>century number</b>: 1900s → 3, 2000s → 2, 2100s → 0, 1800s → 5.</li>
           </ul>
-          Example 2026: 26 → 13 → 24 → 4 (to 28) → +2 (2000s) → <b>6</b> (Saturday).
+          Example 2026: 26 → 13 → 24 → 4 (to 28) → +2 (2000s) → <b>6</b>.
         </li>
-        <li><span class="m"><b>Month modifier</b></span> = a fixed number per month (see the tables below). In leap years January and February use one less.</li>
-        <li><span class="d"><b>Day</b></span> = the day of the month. Add all three, drop multiples of 7.</li>
+        <li><span class="m"><b>Month modifier</b></span>: a fixed number per month (see the tables below). In leap years January and February use one less.</li>
+        <li><span class="d"><b>Day</b></span>: the day of the month.</li>
       </ol>
-      <p>Why it works: each month's modifier is just <code>−(doomsday date of that month) mod 7</code>, e.g. October's doomsday is the 10th, so its modifier is −10 ≡ 4.</p>
+      <p>Add the three and drop multiples of 7. Example: October 24, 2026 → 6 + 4 + 24 = 34 ≡ 6 → Saturday.</p>
       <p><b>Try any date:</b></p>
     </div>`;
     d.querySelector('.tut').append(calcWidget());
