@@ -216,7 +216,7 @@ cp.scripts.define(async () => {
   const monthShifts = [4, 0, 0, 3, 5, 1, 3, 6, 2, 4, 0, 2];
   const isLeapYear = (y) => (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
   const yearModifier = (y) => new Date(y, 9, 10).getDay(); // weekday of Oct 10 (doomsday)
-  const hue = (k) => `hsl(${k * 51}, 70%, 88%)`;
+  const hue = (k) => `hsl(${k * 51}, 45%, 94%)`;
   const chip = (k, text) => `<span class="chip" style="background:${hue(k)}">${text}</span>`;
   const shortDay = (k) => dayNames[k].slice(0, 3);
 
@@ -251,42 +251,38 @@ cp.scripts.define(async () => {
     return wrap;
   };
 
+  const cell = (k, top, bottom, extra = '') =>
+    `<div class="cell" style="background:${hue(k)};${extra}"><div>${top}</div><b>${bottom}</b></div>`;
+  const groupRows = (items) => `<div class="groups">${[0, 1, 2, 3, 4, 5, 6].map(k =>
+    `<div class="lead">${k} <small>${shortDay(k)}</small></div><div>${items(k) || '<i>—</i>'}</div>`).join('')}</div>`;
+
   const monthsMatrix = () => `
-    <p class="note">Each month has a fixed modifier (0 = Sunday … 6 = Saturday). Same colour = same modifier.</p>
-    <table class="grid months">${[0, 1, 2].map(r => '<tr>' + [0, 1, 2, 3].map(c => {
-    const m = r * 4 + c;
-    return `<td style="background:${hue(monthShifts[m])}"><div>${monthNames[m]}</div><b>${monthShifts[m]}</b></td>`;
-  }).join('') + '</tr>').join('')}</table>
-    <p class="note">In a <b>leap year</b>, January and February get one less (3 and −1 ≡ 6).</p>`;
+    <p class="note">Each month has a fixed number (0 = Sunday … 6 = Saturday). Same colour = same number. In a leap year, January and February get one less.</p>
+    <div class="cells">${monthNames.map((n, m) => cell(monthShifts[m], n, monthShifts[m])).join('')}</div>`;
 
   const monthsGrouped = () => `
-    <p class="note">Months that share a modifier behave identically: e.g. a date in any of them falls on the same weekday as the same day-number in the others.</p>
-    <table class="grid">${[0, 1, 2, 3, 4, 5, 6].map(k => {
-    const ms = monthNames.map((n, i) => monthShifts[i] === k ? chip(k, n) : '').join(' ');
-    return `<tr><td class="lead">${chip(k, `<b>${k}</b>`)}</td><td>${ms || '<i>—</i>'}</td></tr>`;
-  }).join('')}</table>`;
+    <p class="note">Months with the same number are interchangeable: the same day-number falls on the same weekday in all of them.</p>
+    ${groupRows(k => monthNames.map((n, i) => monthShifts[i] === k ? chip(k, n) : '').join(' '))}`;
 
   const yearRange = () => {
     const y = new Date().getFullYear();
     return Array.from({ length: 21 }, (_, i) => y - 10 + i);
   };
   const yearsMatrix = () => {
-    const ys = yearRange(), now = new Date().getFullYear();
+    const now = new Date().getFullYear();
     return `
-    <p class="note">Year modifier = weekday of the year's doomsday (Oct 10, Dec 12, …). Leap years marked ⭒.</p>
-    <table class="grid years">${[0, 1, 2].map(r => '<tr>' + [0, 1, 2, 3, 4, 5, 6].map(c => {
-      const y = ys[r * 7 + c], k = yearModifier(y);
-      return `<td style="background:${hue(k)};${y === now ? 'outline:2px solid #333;' : ''}"><div>${y}${isLeapYear(y) ? '⭒' : ''}</div><b>${k}</b> <small>${shortDay(k)}</small></td>`;
-    }).join('') + '</tr>').join('')}</table>`;
+    <p class="note">The year's number is the weekday of its doomsday (Oct 10, Dec 12, …). Leap years are marked ⭒.</p>
+    <div class="cells">${yearRange().map(y => {
+      const k = yearModifier(y);
+      return cell(k, `${y}${isLeapYear(y) ? '⭒' : ''}`, `${k} <small>${shortDay(k)}</small>`, y === now ? 'border-color:#000;' : '');
+    }).join('')}</div>`;
   };
   const yearsGrouped = () => {
-    const ys = yearRange(), now = new Date().getFullYear();
+    const now = new Date().getFullYear();
     return `
-    <p class="note">Years grouped by modifier. Years in the same row share a calendar for March–December.</p>
-    <table class="grid">${[0, 1, 2, 3, 4, 5, 6].map(k => {
-      const list = ys.filter(y => yearModifier(y) === k).map(y => chip(k, `${y === now ? '<u>' : ''}${y}${isLeapYear(y) ? '⭒' : ''}${y === now ? '</u>' : ''}`)).join(' ');
-      return `<tr><td class="lead">${chip(k, `<b>${k}</b> ${shortDay(k)}`)}</td><td>${list || '<i>—</i>'}</td></tr>`;
-    }).join('')}</table>`;
+    <p class="note">Years with the same number share the same calendar from March to December.</p>
+    ${groupRows(k => yearRange().filter(y => yearModifier(y) === k).map(y =>
+      chip(k, `${y === now ? '<u>' : ''}${y}${isLeapYear(y) ? '⭒' : ''}${y === now ? '</u>' : ''}`)).join(' '))}`;
   };
 
   const calcWidget = () => {
@@ -345,35 +341,64 @@ cp.scripts.define(async () => {
     return d;
   };
 
+  cp.styles.add(`
+    .reference, .reference * { box-sizing: border-box; max-width: 100%; }
+    .reference { overflow-wrap: anywhere; }
+    .reference h4 { margin: 1.2em 0 0.3em; }
+    .nav button, .tabs button { margin-right: 0.3em; }
+    .nav button.active, .tabs button.active { background: #00000018; }
+    .cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.5em, 1fr)); gap: 0.25rem; }
+    .cell { text-align: center; padding: 0.2em; border: 0.1px solid #00000020; border-radius: 0.3rem; }
+    .groups { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.6em; align-items: center; }
+    .groups .lead { white-space: nowrap; }
+    .chip { display: inline-block; padding: 0 0.4em; margin: 0.1em; border-radius: 0.3rem; border: 0.1px solid #00000020; }
+    .note { font-size: 0.8em; margin: 0.4em 0; opacity: 0.8; }
+    details.tutorial { margin: 0.5em 0; padding: 0.4em 0.7em; border: 0.1px solid #00000020; border-radius: 0.3rem; }
+    details.tutorial summary { cursor: pointer; }
+    .tut ol, .tut ul { padding-left: 1.3em; }
+    .formula { text-align: center; }
+    .y, .m, .d { padding: 0 0.3em; border-radius: 0.3rem; border: 0.1px solid #00000020; }
+    .y { background: hsl(0,45%,94%); } .m { background: hsl(102,45%,94%); } .d { background: hsl(204,45%,94%); }
+    .calc-out > div { margin: 0.3em 0; }
+    .calc input { font: inherit; }
+  `);
+
   const referenceElem = () => {
     const wrap = put('div.reference');
     wrap.append(
       tutorial(),
       put('h4 $', 'Months'),
-      toggleGroup(['Calendar', 'Grouped by modifier'], [monthsMatrix, monthsGrouped]),
+      toggleGroup(['Calendar', 'By number'], [monthsMatrix, monthsGrouped]),
       put('h4 $', 'Years around now'),
-      toggleGroup(['Calendar', 'Grouped by modifier'], [yearsMatrix, yearsGrouped]),
+      toggleGroup(['Calendar', 'By number'], [yearsMatrix, yearsGrouped]),
     );
     return wrap;
   };
-  cp.styles.add(`
-    .reference h4 { margin: 1em 0 0.3em; }
-    .tabs button { margin-right: 0.3em; padding: 0.2em 0.7em; }
-    .tabs button.active { background: #ddd; font-weight: bold; }
-    .grid { border-collapse: separate; border-spacing: 3px; width: 100%; }
-    .grid td { padding: 0.3em 0.4em; border-radius: 0.3rem; text-align: center; }
-    .grid td.lead { width: 1%; white-space: nowrap; }
-    .grid td:not(.lead) { background: none; text-align: left; }
-    .grid.months td, .grid.years td { text-align: center; }
-    .chip { display: inline-block; padding: 0.05em 0.5em; margin: 0.1em; border-radius: 0.6em; border: 0.1px solid #00000020; }
-    .note { font-size: 0.8em; margin: 0.4em 0; opacity: 0.8; }
-    details.tutorial { margin: 0.5em 0; padding: 0.4em 0.7em; border: 0.1px solid #00000030; border-radius: 0.3rem; background: #ffffff90; }
-    details.tutorial summary { cursor: pointer; }
-    .formula { text-align: center; font-size: 1.1em; }
-    .y { background: hsl(0,70%,88%); padding: 0 0.3em; border-radius: 0.3em; }
-    .m { background: hsl(102,70%,88%); padding: 0 0.3em; border-radius: 0.3em; }
-    .d { background: hsl(204,70%,88%); padding: 0 0.3em; border-radius: 0.3em; }
-    .calc-out > div { margin: 0.3em 0; }
+  const referenceView = referenceElem();
+  const practiceView = put('div');
+  const nav = put('div.nav');
+  [['Practice', practiceView], ['Reference', referenceView]].forEach(([label, view]) => {
+    const b = put('button $', label);
+    b.onclick = () => {
+      [...nav.children].forEach(c => c.classList.toggle('active', c === b));
+      [practiceView, referenceView].forEach(v => v.hidden = v !== view);
+    };
+    nav.append(b);
+  });
+
+  practiceView.append(...cp.html`
+    ${exerciseElem}
+    ${cp.ui.vspace('1em')}
+    <div>
+      Date range:
+      <button>
+      ${put('span $ @click', '⇆', () => {
+        customRandomDateMode++;
+        nextExercise();
+      })}
+      </button>
+      ${refRange = put('span')}
+    </div>
   `);
 
   const main = cp.html`
@@ -388,27 +413,17 @@ cp.scripts.define(async () => {
         monthNames = monthNamesDict[lang];
       })}
     </h3>
+    ${nav}
     <hr>
-    ${exerciseElem}
+    ${referenceView}
+    ${practiceView}
     ${cp.ui.vspace('1em')}
-    <hr>
-    ${referenceElem()}
-    <hr>
-    <div>
-      Date range:
-      <button>
-      ${put('span $ @click', '⇆', () => {
-        customRandomDateMode++;
-        nextExercise();
-      })}
-      </button>
-      ${refRange = put('span')}
-    </div>
     <div>
       Carlos Pinzón.
     </div>
   `;
   customRandomDate(); // Trigger refRange update
+  nav.children[0].click();
 
   const mainWrapper = put(`div.${cp.styles.add((uid) => `
     .${uid}{
