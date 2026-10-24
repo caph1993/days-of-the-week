@@ -110,7 +110,7 @@ cp.scripts.define(async () => {
 
   function newResultsElem(result, onNext) {
     const { day, month, year, guess, dayOfWeek, elapsed } = result;
-    const yearsDayOfWeek = new Date(`${year}-10-10`).getDay();
+    const yearsDayOfWeek = new Date(year, 9, 10).getDay();
     const isCorrect = guess === dayOfWeek;
     const dateStr = `${monthNames[month]} ${day}, ${year}`;
     const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
@@ -211,6 +211,171 @@ cp.scripts.define(async () => {
     }
   `);
 
+
+  // ---------- Reference: tutorial, month tables, year tables ----------
+  const monthShifts = [4, 0, 0, 3, 5, 1, 3, 6, 2, 4, 0, 2];
+  const isLeapYear = (y) => (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
+  const yearModifier = (y) => new Date(y, 9, 10).getDay(); // weekday of Oct 10 (doomsday)
+  const hue = (k) => `hsl(${k * 51}, 70%, 88%)`;
+  const chip = (k, text) => `<span class="chip" style="background:${hue(k)}">${text}</span>`;
+  const shortDay = (k) => dayNames[k].slice(0, 3);
+
+  /** The "odd + 11" steps for the last two digits, and the century anchor. */
+  function yearSteps(year) {
+    let value = year % 100;
+    const parts = [`${value}`];
+    if (value % 2) { value += 11; parts.push(`+11 → ${value}`); }
+    value /= 2; parts.push(`/2 → ${value}`);
+    if (value % 2) { value += 11; parts.push(`+11 → ${value}`); }
+    const next7 = 7 * Math.ceil(value / 7);
+    value = next7 - value;
+    parts.push(`to next multiple of 7 → ${value}`);
+    const century = (7 + yearModifier(year) - value) % 7;
+    return { parts, value, century };
+  }
+
+  const toggleGroup = (labels, views) => {
+    const wrap = put('div');
+    const bar = put('div.tabs');
+    const body = put('div');
+    labels.forEach((label, i) => {
+      const b = put('button $', label);
+      b.onclick = () => {
+        [...bar.children].forEach((c, j) => c.classList.toggle('active', i === j));
+        body.innerHTML = views[i]();
+      };
+      bar.append(b);
+    });
+    wrap.append(bar, body);
+    bar.children[0].click();
+    return wrap;
+  };
+
+  const monthsMatrix = () => `
+    <p class="note">Each month has a fixed modifier (0 = Sunday … 6 = Saturday). Same colour = same modifier.</p>
+    <table class="grid months">${[0, 1, 2].map(r => '<tr>' + [0, 1, 2, 3].map(c => {
+    const m = r * 4 + c;
+    return `<td style="background:${hue(monthShifts[m])}"><div>${monthNames[m]}</div><b>${monthShifts[m]}</b></td>`;
+  }).join('') + '</tr>').join('')}</table>
+    <p class="note">In a <b>leap year</b>, January and February get one less (3 and −1 ≡ 6).</p>`;
+
+  const monthsGrouped = () => `
+    <p class="note">Months that share a modifier behave identically: e.g. a date in any of them falls on the same weekday as the same day-number in the others.</p>
+    <table class="grid">${[0, 1, 2, 3, 4, 5, 6].map(k => {
+    const ms = monthNames.map((n, i) => monthShifts[i] === k ? chip(k, n) : '').join(' ');
+    return `<tr><td class="lead">${chip(k, `<b>${k}</b>`)}</td><td>${ms || '<i>—</i>'}</td></tr>`;
+  }).join('')}</table>`;
+
+  const yearRange = () => {
+    const y = new Date().getFullYear();
+    return Array.from({ length: 21 }, (_, i) => y - 10 + i);
+  };
+  const yearsMatrix = () => {
+    const ys = yearRange(), now = new Date().getFullYear();
+    return `
+    <p class="note">Year modifier = weekday of the year's doomsday (Oct 10, Dec 12, …). Leap years marked ⭒.</p>
+    <table class="grid years">${[0, 1, 2].map(r => '<tr>' + [0, 1, 2, 3, 4, 5, 6].map(c => {
+      const y = ys[r * 7 + c], k = yearModifier(y);
+      return `<td style="background:${hue(k)};${y === now ? 'outline:2px solid #333;' : ''}"><div>${y}${isLeapYear(y) ? '⭒' : ''}</div><b>${k}</b> <small>${shortDay(k)}</small></td>`;
+    }).join('') + '</tr>').join('')}</table>`;
+  };
+  const yearsGrouped = () => {
+    const ys = yearRange(), now = new Date().getFullYear();
+    return `
+    <p class="note">Years grouped by modifier. Years in the same row share a calendar for March–December.</p>
+    <table class="grid">${[0, 1, 2, 3, 4, 5, 6].map(k => {
+      const list = ys.filter(y => yearModifier(y) === k).map(y => chip(k, `${y === now ? '<u>' : ''}${y}${isLeapYear(y) ? '⭒' : ''}${y === now ? '</u>' : ''}`)).join(' ');
+      return `<tr><td class="lead">${chip(k, `<b>${k}</b> ${shortDay(k)}`)}</td><td>${list || '<i>—</i>'}</td></tr>`;
+    }).join('')}</table>`;
+  };
+
+  const calcWidget = () => {
+    const wrap = put('div.calc');
+    const input = put('input[type=date]');
+    const out = put('div.calc-out');
+    const today = new Date();
+    input.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const update = () => {
+      const [y, m, d] = input.value.split('-').map(Number);
+      if (!y) { out.textContent = ''; return; }
+      const month = m - 1, yk = yearModifier(y);
+      const leapAdj = isLeapYear(y) && month < 2 ? -1 : 0;
+      const mk = monthShifts[month] + leapAdj;
+      const total = ((yk + mk + d) % 7 + 7) % 7;
+      const st = yearSteps(y);
+      out.innerHTML = `
+        <div><b>1. Year ${y}:</b> ${st.parts.join(' ; ')}. Add the century anchor ${st.century} →
+          ${chip(yk, `<b>${yk}</b>`)} (${dayNames[yk]})</div>
+        <div><b>2. Month ${monthNames[month]}:</b> ${chip(mk < 0 ? mk + 7 : mk, `<b>${monthShifts[month]}</b>`)}${leapAdj ? ' − 1 (leap year) = ' + (mk + 7) % 7 : ''}</div>
+        <div><b>3. Day:</b> ${d}</div>
+        <div><b>Sum:</b> ${yk} + ${mk} + ${d} = ${yk + mk + d} ≡ ${chip(total, `<b>${total}</b>`)} (mod 7) → <b>${dayNames[total]}</b></div>`;
+    };
+    input.onchange = input.oninput = update;
+    update();
+    wrap.append(input, out);
+    return wrap;
+  };
+
+  const tutorial = () => {
+    const d = put('details.tutorial');
+    d.open = false;
+    d.innerHTML = `<summary><b>How to do it in your head</b> — year modifier + month modifier + day</summary>
+    <div class="tut">
+      <p>Number the days <b>0 = Sunday, 1 = Monday, … 6 = Saturday</b>. Then:</p>
+      <p class="formula">weekday = <span class="y">year modifier</span> + <span class="m">month modifier</span> + <span class="d">day of month</span> &nbsp;(mod 7)</p>
+      <ol>
+        <li><span class="y"><b>Year modifier</b></span> = the weekday of the year's "doomsday" (the same weekday as Oct 10, Dec 12, Apr 4, …).
+          Take the last two digits and apply the <i>odd + 11</i> method:
+          <ul>
+            <li>if odd, add 11;</li>
+            <li>halve it;</li>
+            <li>if odd again, add 11;</li>
+            <li>take the distance to the next multiple of 7 (0 if already a multiple);</li>
+            <li>add the <b>century anchor</b>: 1900s → 3 (Wed), 2000s → 2 (Tue), 2100s → 0 (Sun), 1800s → 5 (Fri).</li>
+          </ul>
+          Example 2026: 26 → 13 → 24 → 4 (to 28) → +2 (2000s) → <b>6</b> (Saturday).
+        </li>
+        <li><span class="m"><b>Month modifier</b></span> = a fixed number per month (see the tables below). In leap years January and February use one less.</li>
+        <li><span class="d"><b>Day</b></span> = the day of the month. Add all three, drop multiples of 7.</li>
+      </ol>
+      <p>Why it works: each month's modifier is just <code>−(doomsday date of that month) mod 7</code>, e.g. October's doomsday is the 10th, so its modifier is −10 ≡ 4.</p>
+      <p><b>Try any date:</b></p>
+    </div>`;
+    d.querySelector('.tut').append(calcWidget());
+    return d;
+  };
+
+  const referenceElem = () => {
+    const wrap = put('div.reference');
+    wrap.append(
+      tutorial(),
+      put('h4 $', 'Months'),
+      toggleGroup(['Calendar', 'Grouped by modifier'], [monthsMatrix, monthsGrouped]),
+      put('h4 $', 'Years around now'),
+      toggleGroup(['Calendar', 'Grouped by modifier'], [yearsMatrix, yearsGrouped]),
+    );
+    return wrap;
+  };
+  cp.styles.add(`
+    .reference h4 { margin: 1em 0 0.3em; }
+    .tabs button { margin-right: 0.3em; padding: 0.2em 0.7em; }
+    .tabs button.active { background: #ddd; font-weight: bold; }
+    .grid { border-collapse: separate; border-spacing: 3px; width: 100%; }
+    .grid td { padding: 0.3em 0.4em; border-radius: 0.3rem; text-align: center; }
+    .grid td.lead { width: 1%; white-space: nowrap; }
+    .grid td:not(.lead) { background: none; text-align: left; }
+    .grid.months td, .grid.years td { text-align: center; }
+    .chip { display: inline-block; padding: 0.05em 0.5em; margin: 0.1em; border-radius: 0.6em; border: 0.1px solid #00000020; }
+    .note { font-size: 0.8em; margin: 0.4em 0; opacity: 0.8; }
+    details.tutorial { margin: 0.5em 0; padding: 0.4em 0.7em; border: 0.1px solid #00000030; border-radius: 0.3rem; background: #ffffff90; }
+    details.tutorial summary { cursor: pointer; }
+    .formula { text-align: center; font-size: 1.1em; }
+    .y { background: hsl(0,70%,88%); padding: 0 0.3em; border-radius: 0.3em; }
+    .m { background: hsl(102,70%,88%); padding: 0 0.3em; border-radius: 0.3em; }
+    .d { background: hsl(204,70%,88%); padding: 0 0.3em; border-radius: 0.3em; }
+    .calc-out > div { margin: 0.3em 0; }
+  `);
+
   const main = cp.html`
     <h3>
       ${put('img[src=$] @', './favicon.png', (self) => self.style.width = '1em')}
@@ -226,6 +391,9 @@ cp.scripts.define(async () => {
     <hr>
     ${exerciseElem}
     ${cp.ui.vspace('1em')}
+    <hr>
+    ${referenceElem()}
+    <hr>
     <div>
       Date range:
       <button>
